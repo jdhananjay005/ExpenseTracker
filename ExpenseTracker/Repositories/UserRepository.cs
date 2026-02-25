@@ -25,5 +25,11 @@ namespace ExpenseTracker.Repositories
         {
             return await _context.Users.ToListAsync();
         }
+
+        public async Task<User?> GetByEmailAsync(string email)
+        {
+            return await _context.Users
+                .FirstOrDefaultAsync(x => x.Email == email);
+        }
     }
 }

@@ -21,27 +21,17 @@ namespace ExpenseTracker.Repositories
             await _context.SaveChangesAsync();
         }
 
-        public async Task<List<GetAllExpenseDto>>GetAllAsync()
+        public async Task<List<Expense>> GetByUserIdAsync(Guid userId)
         {
             return await _context.Expenses
-            .Include(e => e.User)
-            .Select(e => new GetAllExpenseDto
-            {
-                Id = e.Id,
-                Title = e.Title,
-                Amount = e.Amount,
-                Category = e.Category,
-                ExpenseDate = e.ExpenseDate,
-                CreatedAt  = e.CreatedAt,
-                UserEmail = e.User.Email
-            })
-            .OrderByDescending(e => e.ExpenseDate)
-            .ToListAsync();
-            }
+                .Where(x => x.UserId == userId)
+                .ToListAsync();
+        }
 
-        public async Task<Expense?> GetExpenseByIdAsync(Guid id)
+        public async Task<Expense?> GetByIdAsync(Guid id)
         {
-            return await _context.Expenses.FindAsync(id);
+            return await _context.Expenses
+                .FirstOrDefaultAsync(x => x.Id == id);
         }
 
         public async Task UpdateAsync(Expense expense)
@@ -49,22 +39,7 @@ namespace ExpenseTracker.Repositories
             _context.Expenses.Update(expense);
             await _context.SaveChangesAsync();
         }
-        public async Task<GetExpenseByIdDto?> GetByIdAsync(Guid id)
-        {
-            return await _context.Expenses
-                .Include(e => e.User)
-                .Where(e => e.Id == id)
-                .Select(e => new GetExpenseByIdDto
-                {
-                    Id = e.Id,
-                    Title = e.Title,
-                    Amount = e.Amount,
-                    Category = e.Category,
-                    ExpenseDate = e.ExpenseDate,
-                    UserEmail = e.User.Email
-                })
-                .FirstOrDefaultAsync();
-        }
+
         public async Task DeleteAsync(Guid id)
         {
             var expense = await _context.Expenses.FindAsync(id);
@@ -73,7 +48,6 @@ namespace ExpenseTracker.Repositories
                 _context.Expenses.Remove(expense);
                 await _context.SaveChangesAsync();
             }
-            return;
         }
     }
 }

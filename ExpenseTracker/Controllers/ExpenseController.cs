@@ -1,12 +1,15 @@
 ﻿using ExpenseTracker.DTOs;
 using ExpenseTracker.Models;
 using ExpenseTracker.Repositories.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using System.Reflection.Metadata.Ecma335;
+using System.Security.Claims;
 
 namespace ExpenseTracker.Controllers
 {
+    [Authorize]
     [Route("api/[controller]")]
     [ApiController]
     public class ExpenseController : ControllerBase
@@ -18,14 +21,26 @@ namespace ExpenseTracker.Controllers
             _repo = repo;
         }
 
+        private Guid GetUserId()
+        {
+            var claim = User.FindFirst(ClaimTypes.NameIdentifier);
+
+            if (claim == null)
+                throw new UnauthorizedAccessException();
+
+            return Guid.Parse(claim.Value);
+        }
+
         // CREATE
         [HttpPost]
         public async Task<IActionResult> Create(CreateExpenseDto dto)
         {
+            var userId = GetUserId();
+
             var expense = new Expense
             {
                 Id = Guid.NewGuid(),
-                UserId = dto.UserId,
+                UserId = userId,
                 Title = dto.Title,
                 Amount = Math.Round(dto.Amount, 2),
                 Category = dto.Category,
@@ -34,23 +49,32 @@ namespace ExpenseTracker.Controllers
             };
 
             await _repo.AddAsync(expense);
-            return Ok("Expense added");
+
+            return Ok("Expense added successfully");
         }
 
-        // READ ALL
+        // READ ALL (User Specific)
         [HttpGet]
         public async Task<IActionResult> GetAll()
         {
-            var expenses = await _repo.GetAllAsync();
+            var userId = GetUserId();
+
+            var expenses = await _repo.GetByUserIdAsync(userId);
+
             return Ok(expenses);
         }
 
-        // READ BY ID
+        // READ BY ID (Ownership Check)
         [HttpGet("{id}")]
         public async Task<IActionResult> GetById(Guid id)
         {
+            var userId = GetUserId();
+
             var expense = await _repo.GetByIdAsync(id);
-            if (expense == null) return NotFound();
+
+            if (expense == null || expense.UserId != userId)
+                return Unauthorized();
+
             return Ok(expense);
         }
 
@@ -58,10 +82,12 @@ namespace ExpenseTracker.Controllers
         [HttpPut("{id}")]
         public async Task<IActionResult> Update(Guid id, UpdateExpenseDto dto)
         {
-            var expense = await _repo.GetExpenseByIdAsync(id); 
+            var userId = GetUserId();
 
-            if (expense == null)
-                return NotFound();
+            var expense = await _repo.GetByIdAsync(id);
+
+            if (expense == null || expense.UserId != userId)
+                return Unauthorized();
 
             expense.Title = dto.Title;
             expense.Amount = Math.Round(dto.Amount, 2);
@@ -69,19 +95,23 @@ namespace ExpenseTracker.Controllers
             expense.ExpenseDate = dto.ExpenseDate;
 
             await _repo.UpdateAsync(expense);
-            return Ok("Expense updated");
+
+            return Ok("Expense updated successfully");
         }
 
         // DELETE
         [HttpDelete("{id}")]
         public async Task<IActionResult> Delete(Guid id)
         {
-            var expense = await _repo.GetExpenseByIdAsync(id);
+            var userId = GetUserId();
 
-            if (expense == null)
-                return NotFound("Expense not found");
+            var expense = await _repo.GetByIdAsync(id);
+
+            if (expense == null || expense.UserId != userId)
+                return Unauthorized();
 
             await _repo.DeleteAsync(id);
+
             return Ok("Expense deleted successfully");
         }
     }

@@ -7,5 +7,8 @@ namespace ExpenseTracker.Repositories.Interfaces
         Task AddAsync(User user);
         
         Task<List<User>> GetAllAsync();
+
+        Task<User?> GetByEmailAsync(string email);
+
     }
 }
